@@ -1,6 +1,16 @@
 import type { PriceTick } from "@/types/instruments";
 
 const BINANCE_WS_URL = "wss://stream.binance.com:9443/stream";
+//E - timestamp, s - symbol, c - cena, P - zmiana procentowa
+interface BinanceTickerMessage {
+  stream: string;
+  data: {
+    E: number;
+    s: string;
+    c: string;
+    P: string;
+  };
+}
 
 type TickListener = (tick: PriceTick) => void;
 
@@ -33,9 +43,21 @@ export class BinanceSocket {
     };
 
     this.socket.onmessage = (event: MessageEvent<string>) => {
-      console.log("[BinanceSocket] message received", event.data);
+      const message = JSON.parse(event.data) as BinanceTickerMessage;
+
+      const tick: PriceTick = {
+        symbol: message.data.s,
+        price: Number(message.data.c),
+        changePercent: Number(message.data.P),
+        timestamp: message.data.E,
+      };
+
+      console.log("[BinanceSocket] tick", tick);
+
+      this.listeners.forEach((listener) => {
+        listener(tick);
+      });
     };
-    
     this.socket.onerror = (error) => {
       console.error("[BinanceSocket] error", error);
     };
