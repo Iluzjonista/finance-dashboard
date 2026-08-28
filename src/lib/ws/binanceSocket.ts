@@ -57,23 +57,32 @@ export class BinanceSocket {
     };
 
     this.socket.onmessage = (event: MessageEvent<string>) => {
-      const message = JSON.parse(event.data) as BinanceTickerMessage;
+      try {
+        const message = JSON.parse(event.data) as BinanceTickerMessage;
 
-      const tick: PriceTick = {
-        symbol: message.data.s,
-        price: Number(message.data.c),
-        changePercent: Number(message.data.P),
-        timestamp: message.data.E,
-      };
+        const tick: PriceTick = {
+          symbol: message.data.s,
+          price: Number(message.data.c),
+          changePercent: Number(message.data.P),
+          timestamp: message.data.E,
+        };
 
-      console.log("[BinanceSocket] tick", tick);
+        console.log("[BinanceSocket] tick", tick);
 
-      this.listeners.forEach((listener) => {
-        listener(tick);
-      });
+        this.listeners.forEach((listener) => {
+          listener(tick);
+        });
+      } catch (error) {
+        console.error("[BinanceSocket] failed to process message", {
+          error,
+          data: event.data,
+        });
+      }
     };
+
     this.socket.onerror = (error) => {
       console.error("[BinanceSocket] error", error);
+      this.socket?.close();
     };
 
     this.socket.onclose = (event) => {
