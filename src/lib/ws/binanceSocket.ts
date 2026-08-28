@@ -1,6 +1,9 @@
 import type { PriceTick } from "@/types/instruments";
 
 const BINANCE_WS_URL = "wss://stream.binance.com:9443/stream";
+const INITIAL_RECONNECT_DELAY = 1000;
+const MAX_RECONNECT_DELAY = 30000;
+
 //E - timestamp, s - symbol, c - cena, P - zmiana procentowa
 interface BinanceTickerMessage {
   stream: string;
@@ -17,6 +20,9 @@ type TickListener = (tick: PriceTick) => void;
 export class BinanceSocket {
   private socket: WebSocket | null = null;
   private readonly listeners = new Set<TickListener>();
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private reconnectDelay = INITIAL_RECONNECT_DELAY;
+  private shouldReconnect = true;
 
   constructor(private readonly symbols: string[]) {
     console.log("[BinanceSocket] created", {
@@ -25,6 +31,12 @@ export class BinanceSocket {
   }
 
   connect(): void {
+    if (this.socket) {
+      console.log("[BinanceSocket] already connected");
+      return;
+    }
+
+    this.shouldReconnect = true;
     const streams = this.symbols
       .map((symbol) => `${symbol.toLowerCase()}@ticker`)
       .join("/");
@@ -40,6 +52,8 @@ export class BinanceSocket {
 
     this.socket.onopen = () => {
       console.log("[BinanceSocket] connected");
+
+      this.reconnectDelay = INITIAL_RECONNECT_DELAY;
     };
 
     this.socket.onmessage = (event: MessageEvent<string>) => {
@@ -68,11 +82,25 @@ export class BinanceSocket {
         reason: event.reason,
         wasClean: event.wasClean,
       });
+
+      this.socket = null;
+
+      if (this.shouldReconnect) {
+        this.scheduleReconnect();
+      }
     };
   }
 
   disconnect(): void {
     console.log("[BinanceSocket] disconnecting");
+
+    this.shouldReconnect = false;
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
     this.socket?.close();
     this.socket = null;
   }
@@ -91,5 +119,22 @@ export class BinanceSocket {
         listenersCount: this.listeners.size,
       });
     };
+  }
+
+  private scheduleReconnect(): void {
+    console.log("[BinanceSocket] reconnect scheduled", {
+      delay: this.reconnectDelay,
+    });
+
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
+
+      this.connect();
+
+      this.reconnectDelay = Math.min(
+        this.reconnectDelay * 2,
+        MAX_RECONNECT_DELAY,
+      );
+    }, this.reconnectDelay);
   }
 }
