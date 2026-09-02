@@ -16,7 +16,7 @@ export function PriceRow({ instrument, tick }: PriceRowProps) {
   );
 
   return (
-    <div>
+    <li className="flex items-center gap-4 py-2">
       <span>{instrument.displayName}</span>
 
       <span>{tick ? tick.price : "..."}</span>
@@ -29,9 +29,10 @@ export function PriceRow({ instrument, tick }: PriceRowProps) {
             ? remove(instrument.symbol)
             : add(instrument)
         }
+        className="ml-auto"
       >
         {isInstrumentWatched ? "Remove" : "Watch"}
       </button>
-    </div>
+    </li>
   );
 }

@@ -12,8 +12,8 @@ interface PortfolioStore {
   positions: Record<string, PortfolioPosition>;
   transactions: Transaction[];
 
-  buy: (symbol: string, quantity: number, price: number) => void;
-  sell: (symbol: string, quantity: number, price: number) => void;
+  buy: (symbol: string, quantity: number, price: number) => boolean;
+  sell: (symbol: string, quantity: number, price: number) => boolean;
 }
 
 export const usePortfolioStore = create<PortfolioStore>()(
@@ -24,6 +24,7 @@ export const usePortfolioStore = create<PortfolioStore>()(
       transactions: [],
 
       buy: (symbol, quantity, price) => {
+        let success = false;
         set((state) => {
           if (quantity <= 0 || price <= 0) {
             return state;
@@ -51,6 +52,7 @@ export const usePortfolioStore = create<PortfolioStore>()(
             timestamp: Date.now(),
           };
 
+          success = true;
           return {
             cashBalancePln: state.cashBalancePln - cost,
             positions: {
@@ -60,9 +62,11 @@ export const usePortfolioStore = create<PortfolioStore>()(
             transactions: [...state.transactions, transaction],
           };
         });
+        return success;
       },
 
       sell: (symbol, quantity, price) => {
+        let success = false;
         set((state) => {
           if (quantity <= 0 || price <= 0) {
             return state;
@@ -92,12 +96,14 @@ export const usePortfolioStore = create<PortfolioStore>()(
             timestamp: Date.now(),
           };
 
+          success = true;
           return {
             cashBalancePln: state.cashBalancePln + quantity * price,
             positions,
             transactions: [...state.transactions, transaction],
           };
         });
+        return success;
       },
     }),
     {
